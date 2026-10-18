@@ -1,0 +1,12 @@
+# Nen tang Luu tru Co so Du lieu NoSQL Key-Value
+rocksdict>=0.3.26
+
+# Xu ly va Trich xuat du lieu
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Truc quan hoa va Giao dien Dashboard
+streamlit>=1.32.0
+plotly>=5.20.0
+matplotlib>=3.8.0
+Pillow>=10.0.0
