@@ -57,7 +57,7 @@ _Cơ chế hoạt động:_ Kịch bản sẽ tự động kiểm tra trạng th
 
 Để đo lường định lượng tốc độ và chứng minh tính ưu việt của cơ sở dữ liệu Key-Value:
 
-- Nhấp đúp chuột để chạy tệp `run_benchmark.bat`.
+- Nhấp đúp chuột để chạy tệp `run_benchmark.bat` trong thư mục `tools/` (hoặc mở dòng lệnh tại thư mục gốc và chạy `tools\run_benchmark.bat`).
 
 _Cơ chế hoạt động:_ Kịch bản sẽ kích hoạt chương trình kiểm thử độc lập bên trong container nhằm:
 
@@ -68,7 +68,7 @@ _Cơ chế hoạt động:_ Kịch bản sẽ kích hoạt chương trình kiể
 
 <br>
 
-### 3: KHỞI CHẠY BẢNG ĐIỀU KHIỂN QUẢN TRỊ VÀ TRỰC QUAN HÓA
+### 3: KHỞI CHẠY BẢNG ĐIỀU KHIỂN QUẢN TRỊ VÀ TRỰC QUAN HÓA (HẾT)
 
 Để mở bảng điều khiển tương tác phục vụ báo cáo và nghiệm thu đề tài:
 
@@ -81,11 +81,20 @@ _Kết quả:_ Trình duyệt web sẽ tự động mở trang quản trị tạ
 
 <br>
 
-### 4: TIỆN ÍCH DỌN DẸP DOCKER (Khi hoàn thành nghiệm thu)
+### 4: TIỆN ÍCH LÀM MỚI VÀ RESET CƠ SỞ DỮ LIỆU (Khi muốn test lại từ đầu)
 
-Nếu muốn giải phóng hoàn toàn dung lượng ổ đĩa và gỡ bỏ môi trường Docker sau khi hoàn tất:
+Nếu muốn đưa cơ sở dữ liệu và dự án về trạng thái "mới tinh" để thử nghiệm lại hoặc chuẩn bị cho buổi báo cáo mà **không cần xóa Docker Image hay build lại từ đầu**:
 
-- Nhấp đúp chuột vào tệp `clean_docker.bat`.
+- Nhấp đúp chuột vào tệp `reset_database.bat` trong thư mục `tools/` (hoặc chạy `tools\reset_database.bat` từ thư mục gốc).
+- Kịch bản sẽ tự động giải phóng khóa tệp (File Lock), xóa sạch dữ liệu cũ trong `rocksdb_data/`, dọn dẹp bộ nhớ đệm Python (`__pycache__`) và khởi động lại container ở trạng thái sẵn sàng trong 1-2 giây. Sau đó bạn chỉ cần chạy `run_demo.bat` để bắt đầu thử nghiệm mới.
+
+<br>
+
+### 5: TIỆN ÍCH DỌN DẸP TOÀN BỘ DOCKER (Khi hoàn thành nghiệm thu)
+
+Nếu muốn giải phóng hoàn toàn dung lượng ổ đĩa và gỡ bỏ môi trường Docker sau khi hoàn tất đề tài:
+
+- Nhấp đúp chuột vào tệp `clean_docker.bat` trong thư mục `tools/` (hoặc mở dòng lệnh tại thư mục gốc và chạy `tools\clean_docker.bat`).
 - Kịch bản sẽ tự động dừng container, xóa bỏ hình ảnh vùng chứa và dọn sạch bộ nhớ đệm xây dựng (Build Cache) của Docker chỉ với một thao tác.
 
 <br>
@@ -109,6 +118,11 @@ Du_an_RocksDB_FPS_Telemetry/
 ├── src/                                  <-- [GitHub] Mã nguồn ứng dụng và logic xử lý cốt lõi
 │   └── ...
 │
+├── tools/                                <-- [GitHub] Thư mục chứa các kịch bản tiện ích bổ trợ
+│   ├── clean_docker.bat                  <-- [GitHub] Tiện ích dọn dẹp sạch sẽ tài nguyên Docker của dự án
+│   ├── reset_database.bat                <-- [GitHub] Tiện ích xóa sạch CSDL RocksDB và làm mới dự án
+│   └── run_benchmark.bat                 <-- [GitHub] Kịch bản chạy đo đạc kiểm thử hiệu năng RocksDB
+│
 ├── .dockerignore
 │
 ├── .gitattributes
@@ -123,11 +137,7 @@ Du_an_RocksDB_FPS_Telemetry/
 │
 ├── setup.bat                             <-- [GitHub] Kịch bản khởi tạo và biên dịch môi trường Docker tự động
 │
-├── run_benchmark.bat                     <-- [GitHub] Kịch bản chạy đo đạc kiểm thử hiệu năng RocksDB
-│
 ├── run_demo.bat                          <-- [GitHub] Kịch bản khởi chạy giao diện Web Dashboard tại cổng 8505
-│
-├── clean_docker.bat                      <-- [GitHub] Tiện ích dọn dẹp sạch sẽ tài nguyên Docker của dự án
 │
 └── README.md
 ```

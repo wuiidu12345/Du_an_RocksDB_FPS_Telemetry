@@ -1,12 +1,33 @@
 @echo off
 chcp 65001 >nul
 title Tien ich don dep Docker - Du an RocksDB FPS Telemetry
+
+cd /d "%~dp0.."
+
 cls
 @echo off
 
 echo ==================================================================================================================
-echo TIEN ICH DON DEP TOAN DIEN DOCKER CHO DU AN NOSQL ROCKSDB
+echo TIEN ICH DON DEP TOAN DIEN DOCKER CHO DU AN
 echo ==================================================================================================================
+echo.
+echo [+] Chuc nang nay se:
+echo     1. Dung va go bo toan bo Container, Network va Volume cua du an.
+echo     2. Xoa sach Docker Image da duoc build cho du an NoSQL RocksDB.
+echo     3. Giai phong bo nho dem xay dung (Build Cache) cua Docker de thu hoi dung luong o dia.
+echo.
+echo [*] CANH BAO: Thao tac nay se xoa Docker Image, neu muon chay lai ban se can chay setup.bat de build lai tu dau!
+echo.
+echo ------------------------------------------------------------------------------------------------------------------
+set /p CONFIRM="Ban co chac chan muon go bo toan bo tai nguyen Docker cua du an? (Y/N): "
+if /i not "%CONFIRM%"=="Y" (
+    echo.
+    echo [INFO] Da huy thao tac don dep Docker.
+    echo.
+    pause
+    exit /b
+)
+
 echo.
 echo.
 

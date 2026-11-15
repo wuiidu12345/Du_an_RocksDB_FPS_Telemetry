@@ -1,11 +1,14 @@
 @echo off
 chcp 65001 >nul
 title Tien ich do kiem hieu nang CSDL - RocksDB Benchmark
+
+cd /d "%~dp0.."
+
 cls
 @echo off
 
 echo ==================================================================================================================
-echo THUC THI TIEN TRINH DO KIEM HIEU NANG ROCKSDB (PUT VS WRITEBATCH ^& RANGE SCAN)
+echo THUC THI TIEN TRINH DO KIEM HIEU NANG ROCKSDB
 echo ==================================================================================================================
 echo.
 echo.
@@ -17,10 +20,30 @@ echo ---------------------------------------------------------------------------
 echo [-] Dang kiem tra trang thai Container 'nosql-rocksdb-engine'...
 echo.
 
+docker info >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Docker Desktop chua duoc bat! Vui long mo Docker Desktop len truoc.
+    echo.
+    pause
+    exit /b
+)
+
+docker ps -a -q --filter "name=nosql-rocksdb-engine" | findstr /r "." >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Khong tim thay Docker Container 'nosql-rocksdb-engine' cua du an!
+    echo.
+    echo [+] Nguyen nhan: Ban chua khoi tao moi truong lan nao hoac truoc do da chay 'clean_docker.bat'.
+    echo [+] HUONG XU LY: Vui long chay file 'setup.bat' truoc de cai dat va khoi tao Docker!
+    echo ==================================================================================================================
+    echo.
+    pause
+    exit /b
+)
+
 docker ps -q --filter "name=nosql-rocksdb-engine" --filter "status=running" | findstr /r "." >nul 2>&1
 if errorlevel 1 (
-    echo [INFO] Container chua bat, dang tu dong khoi dong container...
-    docker compose up -d
+    echo [INFO] Container chua bat, dang khoi dong lai container...
+    docker start nosql-rocksdb-engine >nul 2>&1
     echo.
 )
 
