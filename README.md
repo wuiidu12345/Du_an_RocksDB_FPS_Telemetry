@@ -68,15 +68,16 @@ _Cơ chế hoạt động:_ Kịch bản sẽ kích hoạt chương trình kiể
 
 <br>
 
-### 3: KHỞI CHẠY BẢNG ĐIỀU KHIỂN QUẢN TRỊ VÀ TRỰC QUAN HÓA (HẾT)
+### 3: KHỞI CHẠY BẢNG ĐIỀU KHIỂN QUẢN TRỊ VÀ TRỰC QUAN HÓA
 
-Để mở bảng điều khiển tương tác phục vụ báo cáo và nghiệm thu đề tài:
+Để mở bảng điều khiển tương tác 7 phân hệ phục vụ báo cáo và nghiệm thu đề tài:
 
 - Nhấp đúp chuột để chạy tệp `run_demo.bat`.
 
 _Kết quả:_ Trình duyệt web sẽ tự động mở trang quản trị tại địa chỉ:
 
 - Giao diện Web Quản trị RocksDB: **http://localhost:8505**
+- Hệ thống tích hợp đầy đủ 7 phân hệ: Giám sát CSDL thô, Tiếp nhận dữ liệu, Truy vấn dải & Export CSV/JSON, Phân tích hiệu suất vũ khí, Phân tích phong cách chiến thuật, Tái hiện không gian Heatmap và Sao lưu & Phục hồi CSDL.
 - Cổng dịch vụ được thiết lập riêng biệt (`8505:8505`), tuyệt đối không gây xung đột cổng với các dự án khác trên máy chủ.
 
 <br>

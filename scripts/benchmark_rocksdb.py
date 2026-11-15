@@ -18,7 +18,6 @@ print(
     "=================================================================================================================="
 )
 
-# Chuẩn bị dữ liệu mẫu 10.000 dòng
 csv_path = os.path.join(DATASET_DIR, "kill_match_stats_50k.csv")
 df = pd.read_csv(csv_path, nrows=10000)
 df.columns = df.columns.str.strip()
@@ -27,13 +26,12 @@ opt = Options()
 opt.create_if_missing(True)
 db = Rdict(BENCH_DB, options=opt)
 
-# 1. Đo kiểm tốc độ ghi đơn Put()
-print("[-] 1. Đang đo tốc độ ghi từng bản ghi đơn lẻ (Put)...")
+print("[-] Đang đo tốc độ ghi từng bản ghi đơn lẻ (Put)...")
 t0 = time.time()
 for idx, row in df.iterrows():
-  key = f"{int(row['time']):08d}|{idx:06d}"
-  val = {"time": int(row['time']), "wp": str(row["killed_by"])}
-  db[key] = json.dumps(val)
+    key = f"{int(row['time']):08d}|{idx:06d}"
+    val = {"time": int(row["time"]), "wp": str(row["killed_by"])}
+    db[key] = json.dumps(val)
 time_put = time.time() - t0
 ops_put = len(df) / time_put
 
@@ -42,17 +40,16 @@ print(
     f" ({ops_put:.2f} ops/giây)"
 )
 
-# 2. Đo kiểm tốc độ ghi gom lô WriteBatch()
-print("\n[-] 2. Đang đo tốc độ ghi theo lô (WriteBatch, batch_size=1000)...")
+print("\n[-] Đang đo tốc độ ghi theo lô (WriteBatch, batch_size=1000)...")
 wb = WriteBatch()
 t0 = time.time()
 for idx, row in df.iterrows():
-  key = f"{int(row['time']):08d}|batch_{idx:06d}"
-  val = {"time": int(row['time']), "wp": str(row["killed_by"])}
-  wb.put(key, json.dumps(val))
-  if idx % 1000 == 0:
-    db.write(wb)
-    wb = WriteBatch()
+    key = f"{int(row['time']):08d}|batch_{idx:06d}"
+    val = {"time": int(row["time"]), "wp": str(row["killed_by"])}
+    wb.put(key, json.dumps(val))
+    if idx % 1000 == 0:
+        db.write(wb)
+        wb = WriteBatch()
 db.write(wb)
 time_batch = time.time() - t0
 ops_batch = len(df) / time_batch
@@ -62,30 +59,23 @@ print(
     f" ({ops_batch:.2f} ops/giây)"
 )
 speedup = ops_batch / ops_put if ops_put > 0 else 0
-print(
-    f" -> Hiệu năng WriteBatch nhanh gấp: {speedup:.2f} lần so với ghi đơn lẻ!"
-)
+print(f" -> Hiệu năng WriteBatch nhanh gấp: {speedup:.2f} lần so với ghi đơn lẻ!")
 
-# 3. Đo kiểm tốc độ quét dải Iterator.seek()
-print(
-    "\n[-] 3. Đang đo tốc độ quét dải thời gian (Range Scan with Iterator)..."
-)
+print("\n[-] Đang đo tốc độ quét dải thời gian (Range Scan with Iterator)...")
 t0 = time.time()
 it = db.iter()
 it.seek("00000200|")
 scanned = 0
 while it.valid() and scanned < 2000:
-  _ = it.key()
-  _ = it.value()
-  scanned += 1
-  it.next()
+    _ = it.key()
+    _ = it.value()
+    scanned += 1
+    it.next()
 time_scan = time.time() - t0
 print(
-    f" -> Đã quét tuần tự {scanned} bản ghi trong {time_scan * 1000:.2f}"
-    " mili-giây!"
+    f" -> Đã quét tuần tự {scanned} bản ghi trong {time_scan * 1000:.2f}" " mili-giây!"
 )
 
-# 4. Giải phóng hoàn toàn các tham chiếu và dọn dẹp an toàn
 del it
 db.close()
 del db
@@ -93,9 +83,9 @@ gc.collect()
 time.sleep(0.3)
 
 try:
-  Rdict.destroy(BENCH_DB, opt)
+    Rdict.destroy(BENCH_DB, opt)
 except Exception:
-  shutil.rmtree(BENCH_DB, ignore_errors=True)
+    shutil.rmtree(BENCH_DB, ignore_errors=True)
 
 print(
     "\n=================================================================================================================="

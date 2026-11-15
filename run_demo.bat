@@ -56,11 +56,9 @@ echo [-] Dang khoi chay ung dung Dashboard bang Streamlit tai cong 8505...
 echo [+] Cua so Web se tu dong mo tai dia chi: http://localhost:8505
 echo.
 
-:: Tu dong don dep tien trinh Streamlit cu tranh chiem cong 8505
 docker exec nosql-rocksdb-engine pkill -9 -f streamlit >nul 2>&1
 timeout /t 1 /nobreak >nul
 
-:: Mo trinh duyet sau 2 giay de cho server khoi dong
 start "" http://localhost:8505
 
 echo [OK] Da kich hoat tien trinh Web Dashboard.
