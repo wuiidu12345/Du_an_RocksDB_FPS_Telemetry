@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
 import time
+import json
 import plotly.express as px
 
 from rocksdb_engine import (
     clear_rocksdb_keys,
+    delete_single_key,
+    flush_rocksdb_memtable,
     get_direct_rocksdb_records,
     get_storage_statistics,
     list_db_physical_files,
@@ -19,7 +22,7 @@ from query_service import (
 from heatmap import generate_spatial_heatmap
 
 st.set_page_config(
-    page_title="Dự án RochsDB FPS Telemetry",
+    page_title="Dự án RocksDB FPS Telemetry",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -125,25 +128,36 @@ with tabs[0]:
             " tiếp tại đây!"
         )
 
-    # Tra cứu Key trực tiếp
+    # Tra cứu Key trực tiếp & Thao tác Point Lookup
     st.markdown("##### 🔎 Tra cứu nhanh theo Khóa chính (Point Lookup - Get Key)")
     c_find1, c_find2 = st.columns([3, 1])
     with c_find1:
         search_key_input = st.text_input(
             "Nhập mã khóa (Key) cần tra cứu:",
             placeholder="Ví dụ: 00000194|1Ocel6nY|000001",
-        )
+        ).strip()
     with c_find2:
         st.write("")
         st.write("")
         btn_search_key = st.button("Truy xuất khóa")
 
-    if btn_search_key and search_key_input:
+    if search_key_input:
         if search_key_input in db:
             val_found = db[search_key_input]
             st.success(f"Tìm thấy Khóa `{search_key_input}` trong RocksDB!")
-            st.json(val_found)
-        else:
+            try:
+                parsed_json = json.loads(val_found) if isinstance(val_found, str) else val_found
+                st.json(parsed_json)
+            except Exception:
+                st.code(str(val_found))
+                
+            col_del_k1, col_del_k2 = st.columns([1, 4])
+            with col_del_k1:
+                if st.button("❌ Xóa bản ghi này", key="btn_del_single_key"):
+                    if delete_single_key(db, search_key_input):
+                        st.success(f"Đã xóa thành công khóa `{search_key_input}` khỏi RocksDB!")
+                        st.rerun()
+        elif btn_search_key:
             st.error(f"Khóa `{search_key_input}` không tồn tại trong CSDL.")
 
     st.markdown("---")
@@ -191,16 +205,31 @@ with tabs[0]:
         st.dataframe(config_df, width="stretch")
 
     with c_right:
-        st.subheader("Tiện ích quản trị bộ lưu trữ")
+        st.subheader("Tiện ích quản trị & Điều khiển LSM-tree")
         st.info(
             "RocksDB duy trì tính toàn vẹn dữ liệu cao nhờ cơ chế ghi đồng thời"
             " vào MemTable trên RAM và WAL trên đĩa."
         )
-        if st.button("🗑️ Xóa sạch toàn bộ dữ liệu trong RocksDB"):
-            clear_rocksdb_keys(db)
+        
+        # Nút Flush thủ công để chứng minh cơ chế LSM-tree
+        if st.button("⚡ Kích hoạt Flush MemTable sang SSTable"):
+            with st.spinner("Đang ép luồng nền ghi đệm MemTable xuống đĩa..."):
+                if flush_rocksdb_memtable(db):
+                    st.success("✅ Đã kích hoạt Flush thành công! Dữ liệu đã chuyển sang các tệp SSTable.")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.warning("Bộ đệm MemTable hiện tại đang trống hoặc đã được flush trước đó.")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        # Hộp kiểm xác nhận an toàn trước khi xóa sạch dữ liệu
+        confirm_clear = st.checkbox("Xác nhận muốn xóa sạch toàn bộ bản ghi trong CSDL")
+        if st.button("🗑️ Xóa sạch toàn bộ dữ liệu trong RocksDB", disabled=not confirm_clear):
+            deleted_count = clear_rocksdb_keys(db)
             st.success(
-                "Đã xóa sạch toàn bộ các bản ghi trong CSDL! Hãy chuyển sang Tab Tiếp nhận sự kiện để nạp dữ liệu."
+                f"Đã xóa sạch {deleted_count:,} bản ghi trong CSDL! Hãy chuyển sang Tab Tiếp nhận sự kiện để nạp dữ liệu mới."
             )
+            time.sleep(0.5)
             st.rerun()
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -243,44 +272,123 @@ with tabs[2]:
     st.markdown('<div class="main-header">Truy Vấn Và Khai Thác Nhật Ký Theo Dải Thời Gian</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Sử dụng con trỏ Iterator của RocksDB để quét tuần tự các dải khóa theo mốc thời gian</div>', unsafe_allow_html=True)
     
-    col_q1, col_q2, col_q3 = st.columns(3)
+    col_q1, col_q2, col_q3, col_q4 = st.columns(4)
     with col_q1:
         t_start = st.number_input("Thời điểm bắt đầu (giây):", min_value=0, max_value=3000, value=100, step=50)
     with col_q2:
-        t_end = st.number_input("Thời điểm kết thúc (giây):", min_value=0, max_value=3000, value=600, step=50)
+        t_end = st.number_input("Thời điểm kết thúc (giây):", min_value=0, max_value=3000, value=400, step=50)
     with col_q3:
         wp_filter = st.selectbox("Lọc theo loại vũ khí:", ["Tất cả", "M416", "AKM", "SCAR-L", "Kar98k", "UMP9"])
+    with col_q4:
+        limit_choice = st.selectbox(
+            "Giới hạn bản ghi quét:",
+            ["10.000 sự kiện", "20.000 sự kiện", "50.000 sự kiện", "100.000 sự kiện", "Toàn bộ (Không giới hạn)"],
+            index=2
+        )
+        
+    # Ánh xạ giới hạn quét
+    if "10.000" in limit_choice:
+        max_scan_limit = 10000
+    elif "20.000" in limit_choice:
+        max_scan_limit = 20000
+    elif "50.000" in limit_choice:
+        max_scan_limit = 50000
+    elif "100.000" in limit_choice:
+        max_scan_limit = 100000
+    else:
+        max_scan_limit = None
+        
+    if "range_query_result" not in st.session_state:
+        st.session_state["range_query_result"] = None
         
     if st.button("🔍 Thực thi truy vấn quét dải"):
         with st.spinner("RocksDB đang duyệt dải khóa trên các tệp SSTable..."):
             t0 = time.time()
-            df_res, scanned = scan_events_by_time_range(db, t_start, t_end, weapon_filter=wp_filter, max_limit=5000)
+            df_res, scanned, is_truncated = scan_events_by_time_range(
+                db, t_start, t_end, weapon_filter=wp_filter, max_limit=max_scan_limit
+            )
             latency = (time.time() - t0) * 1000.0
+            st.session_state["range_query_result"] = {
+                "df_res": df_res,
+                "scanned": scanned,
+                "latency": latency,
+                "t_start": t_start,
+                "t_end": t_end,
+                "wp_filter": wp_filter,
+                "max_limit": max_scan_limit,
+                "is_truncated": is_truncated
+            }
             
-            st.info(f"⚡ Đã quét **{scanned}** bản ghi liên tiếp trong khoảng thời gian từ `{t_start}s` đến `{t_end}s`, tìm thấy **{len(df_res)}** sự kiện phù hợp! Độ trễ phản hồi: **{latency:.2f} ms**")
-            
-            if not df_res.empty:
-                # Định dạng tên cột thuần tiếng Việt có chú thích mã trường gốc
-                display_table = df_res[['time', 'killed_by', 'killer_name', 'victim_name', 'combat_distance', 'map']].head(25).rename(columns={
-                    'time': 'Thời điểm phát sinh (time - giây)',
-                    'killed_by': 'Vũ khí kết liễu (killed_by)',
-                    'killer_name': 'Người thực hiện (killer_name)',
-                    'victim_name': 'Nạn nhân (victim_name)',
-                    'combat_distance': 'Khoảng cách tiêu diệt (combat_distance - mét)',
-                    'map': 'Bản đồ chiến trường (map)'
-                })
-                st.dataframe(display_table, width="stretch")
-                
-                # Biểu đồ phân bố mật độ sự kiện theo chuỗi thời gian
-                fig_time = px.histogram(
-                    df_res, x="time", nbins=30, 
-                    title=f"Phân bố tần suất sự kiện từ {t_start} giây đến {t_end} giây",
-                    labels={"time": "Thời điểm diễn ra sự kiện (giây)", "count": "Số lượng sự kiện"},
-                    color_discrete_sequence=['#38bdf8']
+    # Hiển thị kết quả bền vững từ Session State (không bao giờ bị mất khi bấm tải tệp CSV/JSON)
+    if st.session_state["range_query_result"] is not None:
+        res_data = st.session_state["range_query_result"]
+        df_res = res_data["df_res"]
+        scanned = res_data["scanned"]
+        latency = res_data["latency"]
+        q_start = res_data["t_start"]
+        q_end = res_data["t_end"]
+        is_truncated = res_data["is_truncated"]
+        
+        if not df_res.empty:
+            if is_truncated:
+                last_event_time = int(df_res['time'].iloc[-1])
+                st.warning(
+                    f"⚠️ **Đã chạm trần giới hạn {len(df_res):,} bản ghi tại mốc {last_event_time}s!** "
+                    f"Dải sự kiện từ `{last_event_time}s` đến `{q_end}s` chưa được quét hết. "
+                    f"👉 Hãy tăng **Giới hạn bản ghi quét** (chọn *50.000*, *100.000* hoặc *Toàn bộ*) rồi bấm truy vấn lại để xem trọn vẹn dải thời gian!"
                 )
-                st.plotly_chart(fig_time, width="stretch")
             else:
-                st.warning("Chưa có bản ghi nào trong khoảng thời gian này. Vui lòng nạp dữ liệu ở Tab Tiếp nhận sự kiện!")
+                st.success(
+                    f"⚡ Đã quét trọn vẹn dải thời gian từ `{q_start}s` đến `{q_end}s`: "
+                    f"Duyệt qua **{scanned:,}** bản ghi liên tiếp, tìm thấy **{len(df_res):,}** sự kiện phù hợp! "
+                    f"Độ trễ phản hồi: **{latency:.2f} ms**"
+                )
+                
+            # Định dạng tên cột thuần tiếng Việt có chú thích mã trường gốc
+            display_table = df_res[['time', 'killed_by', 'killer_name', 'victim_name', 'combat_distance', 'map']].head(25).rename(columns={
+                'time': 'Thời điểm phát sinh (time - giây)',
+                'killed_by': 'Vũ khí kết liễu (killed_by)',
+                'killer_name': 'Người thực hiện (killer_name)',
+                'victim_name': 'Nạn nhân (victim_name)',
+                'combat_distance': 'Khoảng cách tiêu diệt (combat_distance - mét)',
+                'map': 'Bản đồ chiến trường (map)'
+            })
+            st.dataframe(display_table, width="stretch")
+            
+            # Biểu đồ phân bố mật độ sự kiện theo chuỗi thời gian (Đã khóa phạm vi trục X chính xác từ q_start đến q_end)
+            fig_time = px.histogram(
+                df_res, x="time", nbins=35,
+                range_x=[q_start, q_end],
+                title=f"Phân bố tần suất sự kiện từ {q_start} giây đến {q_end} giây (Tổng cộng: {len(df_res):,} sự kiện)",
+                labels={"time": "Thời điểm diễn ra sự kiện (giây)", "count": "Số lượng sự kiện"},
+                color_discrete_sequence=['#38bdf8']
+            )
+            fig_time.update_layout(xaxis=dict(range=[q_start, q_end]))
+            st.plotly_chart(fig_time, width="stretch")
+            
+            # Tính năng Xuất dữ liệu (Export) bền vững không làm mất giao diện
+            st.markdown("##### 📥 Xuất dữ liệu sự kiện đã lọc (Export Data)")
+            col_exp1, col_exp2 = st.columns(2)
+            with col_exp1:
+                csv_export = df_res.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📄 Tải kết quả dạng tệp CSV",
+                    data=csv_export,
+                    file_name=f"rocksdb_events_{q_start}s_to_{q_end}s.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            with col_exp2:
+                json_export = df_res.to_json(orient='records', force_ascii=False, indent=2).encode('utf-8')
+                st.download_button(
+                    label="📋 Tải kết quả dạng tệp JSON",
+                    data=json_export,
+                    file_name=f"rocksdb_events_{q_start}s_to_{q_end}s.json",
+                    mime="application/json",
+                    use_container_width=True
+                )
+        else:
+            st.warning(f"Chưa có bản ghi nào trong khoảng thời gian từ {q_start}s đến {q_end}s. Vui lòng nạp dữ liệu ở Tab Tiếp nhận sự kiện!")
 
 # ----------------------------------------------------------------------------------------------------------------------
 # TAB 4: PHÂN TÍCH HIỆU SUẤT VŨ KHÍ
@@ -406,7 +514,7 @@ with tabs[5]:
         
     if st.button("🗺️ Kết xuất bản đồ nhiệt từ dữ liệu RocksDB"):
         with st.spinner("Đang truy xuất tọa độ từ RocksDB và dựng ảnh thực địa..."):
-            df_map_events, _ = scan_events_by_time_range(db, 0, 3000, weapon_filter=wp_heat, map_filter=map_name, max_limit=8000)
+            df_map_events, *_ = scan_events_by_time_range(db, 0, 3000, weapon_filter=wp_heat, map_filter=map_name, max_limit=8000)
             fig_h = generate_spatial_heatmap(df_map_events, selected_map=map_name, selected_weapon=wp_heat)
             st.pyplot(fig_h)
             

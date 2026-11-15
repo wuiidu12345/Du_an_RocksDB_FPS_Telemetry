@@ -6,7 +6,7 @@ import pandas as pd
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATASET_DIR = os.path.join(BASE_DIR, "dataset")
 
-def scan_events_by_time_range(db, start_time_sec, end_time_sec, weapon_filter=None, map_filter=None, max_limit=10000):
+def scan_events_by_time_range(db, start_time_sec, end_time_sec, weapon_filter=None, map_filter=None, max_limit=20000):
     """
     Sử dụng RocksDB Iterator để quét Range Scan theo mốc thời gian.
     Tận dụng tính chất sắp xếp từ điển của Composite Key.
@@ -19,8 +19,13 @@ def scan_events_by_time_range(db, start_time_sec, end_time_sec, weapon_filter=No
     
     matched_events = []
     scanned_count = 0
+    is_truncated = False
     
-    while it.valid() and len(matched_events) < max_limit:
+    while it.valid():
+        if max_limit is not None and len(matched_events) >= max_limit:
+            is_truncated = True
+            break
+            
         k = it.key()
         parts = k.split("|")
         current_time = int(parts[0])
@@ -31,7 +36,11 @@ def scan_events_by_time_range(db, start_time_sec, end_time_sec, weapon_filter=No
             
         scanned_count += 1
         raw_val = it.value()
-        event_data = json.loads(raw_val)
+        try:
+            event_data = json.loads(raw_val) if isinstance(raw_val, str) else raw_val
+        except Exception:
+            it.next()
+            continue
         
         # Áp dụng các bộ lọc nghiệp vụ
         if weapon_filter and weapon_filter != "Tất cả":
@@ -44,16 +53,20 @@ def scan_events_by_time_range(db, start_time_sec, end_time_sec, weapon_filter=No
                 it.next()
                 continue
                 
-        # Tính cự ly giao tranh
-        dx = event_data['killer_pos_x'] - event_data['victim_pos_x']
-        dy = event_data['killer_pos_y'] - event_data['victim_pos_y']
+        # Tính cự ly giao tranh an toàn
+        k_x = float(event_data.get('killer_pos_x', 0) or 0)
+        v_x = float(event_data.get('victim_pos_x', 0) or 0)
+        k_y = float(event_data.get('killer_pos_y', 0) or 0)
+        v_y = float(event_data.get('victim_pos_y', 0) or 0)
+        dx = k_x - v_x
+        dy = k_y - v_y
         event_data['combat_distance'] = round(np.sqrt(dx**2 + dy**2) / 100.0, 2)
         
         matched_events.append(event_data)
         it.next()
         
     df_result = pd.DataFrame(matched_events)
-    return df_result, scanned_count
+    return df_result, scanned_count, is_truncated
 
 def compute_weapon_statistics_from_db(db, max_scan=50000):
     """Quét dữ liệu trong RocksDB để tổng hợp chỉ số hiệu suất vũ khí phục vụ Dashboard"""
@@ -65,17 +78,25 @@ def compute_weapon_statistics_from_db(db, max_scan=50000):
     excluded = ['Down and Out', 'Bluezone', 'Redzone', 'Drown', 'Falling', 'Punch']
     
     while it.valid() and count < max_scan:
-        val = json.loads(it.value())
-        wp = val.get('killed_by', 'Unknown')
-        if wp not in excluded:
-            dx = val['killer_pos_x'] - val['victim_pos_x']
-            dy = val['killer_pos_y'] - val['victim_pos_y']
-            dist = round(np.sqrt(dx**2 + dy**2) / 100.0, 2)
-            records.append({
-                "killed_by": wp,
-                "combat_distance": dist,
-                "map": val.get('map', 'ERANGEL')
-            })
+        try:
+            raw_v = it.value()
+            val = json.loads(raw_v) if isinstance(raw_v, str) else raw_v
+            wp = val.get('killed_by', 'Unknown')
+            if wp not in excluded:
+                k_x = float(val.get('killer_pos_x', 0) or 0)
+                v_x = float(val.get('victim_pos_x', 0) or 0)
+                k_y = float(val.get('killer_pos_y', 0) or 0)
+                v_y = float(val.get('victim_pos_y', 0) or 0)
+                dx = k_x - v_x
+                dy = k_y - v_y
+                dist = round(np.sqrt(dx**2 + dy**2) / 100.0, 2)
+                records.append({
+                    "killed_by": wp,
+                    "combat_distance": dist,
+                    "map": val.get('map', 'ERANGEL')
+                })
+        except Exception:
+            pass
         count += 1
         it.next()
         

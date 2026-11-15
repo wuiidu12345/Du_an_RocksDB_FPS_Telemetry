@@ -69,7 +69,7 @@ if /i not "%CONFIRM%"=="Y" (
 
 echo.
 echo ------------------------------------------------------------------------------------------------------------------
-echo [-] 1. Dang giai phong khoa doc quyen va tam dung Container...
+echo [-] Dang giai phong khoa doc quyen va tam dung Container...
 echo.
 
 docker stop nosql-rocksdb-engine >nul 2>&1
@@ -79,7 +79,7 @@ echo [OK] Da giai phong file lock thanh cong.
 echo.
 
 echo ------------------------------------------------------------------------------------------------------------------
-echo [-] 2. Dang xoa sach du lieu RocksDB va thu muc tam...
+echo [-] Dang xoa sach du lieu RocksDB va thu muc tam...
 echo.
 
 if exist "rocksdb_data" (
@@ -95,7 +95,7 @@ if exist "benchmark_db" (
 )
 
 echo.
-echo [-] 3. Dang don dep bo nho dem Python (__pycache__)...
+echo [-] Dang don dep bo nho dem Python (__pycache__)...
 for /d /r . %%d in (__pycache__) do @if exist "%%d" (
     rd /s /q "%%d" >nul 2>&1
 )
@@ -106,7 +106,7 @@ echo [OK] Da don sach tat ca tep cache cua du an.
 echo.
 
 echo ------------------------------------------------------------------------------------------------------------------
-echo [-] 4. Dang bat lai Container da co o trang thai moi tinh...
+echo [-] Dang bat lai Container da co o trang thai moi tinh...
 echo.
 
 docker start nosql-rocksdb-engine >nul 2>&1

@@ -2,7 +2,7 @@ import os
 import shutil
 import json
 import time
-from rocksdict import Rdict, Options, BlockBasedOptions
+from rocksdict import Rdict, Options, BlockBasedOptions, WriteBatch
 
 # Import Cache nếu phiên bản rocksdict hỗ trợ, dự phòng an toàn
 try:
@@ -85,13 +85,63 @@ def get_storage_statistics(db_path=DB_PATH):
     }
 
 def clear_rocksdb_keys(db):
-  """Xóa toàn bộ các bản ghi trong RocksDB bằng cơ chế Tombstone"""
-  if db is not None:
+    """Xóa toàn bộ các bản ghi trong RocksDB bằng WriteBatch hiệu năng cao (Tombstone)"""
+    if db is None:
+        return 0
     try:
-      for k in list(db.keys()):
-        del db[k]
+        all_keys = list(db.keys())
+        total_keys = len(all_keys)
+        if total_keys == 0:
+            return 0
+            
+        wb = WriteBatch()
+        count = 0
+        for k in all_keys:
+            wb.delete(k)
+            count += 1
+            if count >= 2000:
+                db.write(wb)
+                wb = WriteBatch()
+                count = 0
+        if count > 0:
+            db.write(wb)
+        return total_keys
     except Exception as e:
-      print(f"[WARN] Lỗi khi xóa keys: {e}")
+        print(f"[WARN] Lỗi khi xóa keys bằng WriteBatch: {e}")
+        # Dự phòng xóa đơn lẻ nếu có lỗi batch
+        try:
+            for k in list(db.keys()):
+                del db[k]
+        except Exception:
+            pass
+        return 0
+
+def delete_single_key(db, key):
+    """Xóa một bản ghi cụ thể theo Khóa chính (Point Delete)"""
+    if db is None or not key:
+        return False
+    try:
+        if key in db:
+            del db[key]
+            return True
+    except Exception as e:
+        print(f"[ERROR] Không thể xóa khóa {key}: {e}")
+    return False
+
+def flush_rocksdb_memtable(db):
+    """Ép chuyển dữ liệu từ bộ nhớ đệm MemTable (RAM) xuống tệp SSTable (Disk)"""
+    if db is None:
+        return False
+    try:
+        if hasattr(db, "flush"):
+            db.flush(wait=True)
+            return True
+        elif hasattr(db, "flush_wal"):
+            db.flush_wal(sync=True)
+            return True
+    except Exception as e:
+        print(f"[WARN] Lỗi khi flush MemTable: {e}")
+    return False
 
 # Tạo alias dự phòng để không bao giờ bị lỗi import
 clear_rocksdb_storage = clear_rocksdb_keys
