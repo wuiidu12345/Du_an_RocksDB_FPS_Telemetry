@@ -116,9 +116,7 @@ with tabs[0]:
     st.markdown("---")
 
     st.subheader("Trực tiếp dữ liệu Key-Value trong RocksDB")
-    st.caption(
-        "Dữ liệu được đọc trực tiếp từ con trỏ Iterator của RocksDB Engine (Mô tả đúng cơ chế Key có thứ tự và Value dạng chuỗi JSON)."
-    )
+    st.caption("Dữ liệu được đọc trực tiếp từ con trỏ Iterator của RocksDB Engine.")
 
     raw_records = get_direct_rocksdb_records(db, limit=20)
     if raw_records:
@@ -132,7 +130,7 @@ with tabs[0]:
             "💡 Hiện tại cơ sở dữ liệu RocksDB chưa có bản ghi nào. Hãy sang **Tab Tiếp nhận sự kiện** bấm nạp dữ liệu để xem các bản ghi xuất hiện trực tiếp tại đây!"
         )
 
-    st.markdown("##### 🔎 Tra cứu nhanh theo Khóa chính (Point Lookup - Get Key)")
+    st.markdown("##### 🔎 Tra cứu nhanh theo Khóa chính")
     c_find1, c_find2 = st.columns([3, 1])
     with c_find1:
         search_key_input = st.text_input(
@@ -168,9 +166,7 @@ with tabs[0]:
         elif btn_search_key:
             st.error(f"Khóa `{search_key_input}` không tồn tại trong CSDL.")
 
-    with st.expander(
-        "➕ Thêm sự kiện đo đạc thủ công vào RocksDB (Thao tác Create)", expanded=False
-    ):
+    with st.expander("➕ Thêm sự kiện đo đạc thủ công vào RocksDB", expanded=False):
         st.caption(
             "Khởi tạo và ghi nhận trực tiếp một bản ghi sự kiện Key-Value mới vào RocksDB theo cấu trúc Composite Key chuẩn hóa."
         )
@@ -378,7 +374,7 @@ with tabs[1]:
             res_c1, res_c2 = st.columns(2)
             res_c1.metric("Thời gian thực thi", f"{res['elapsed_seconds']} giây")
             res_c2.metric(
-                "Thông lượng ghi (Throughput)",
+                "Thông lượng ghi",
                 f"{res['throughput_ops']:,} bản ghi/giây",
             )
 
@@ -522,7 +518,7 @@ with tabs[2]:
             fig_time.update_layout(xaxis=dict(range=[q_start, q_end]))
             st.plotly_chart(fig_time, width="stretch")
 
-            st.markdown("##### 📥 Xuất dữ liệu sự kiện đã lọc (Export Data)")
+            st.markdown("##### 📥 Xuất dữ liệu sự kiện đã lọc")
             col_exp1, col_exp2 = st.columns(2)
             with col_exp1:
                 csv_export = df_res.to_csv(index=False).encode("utf-8")
@@ -764,24 +760,24 @@ with tabs[5]:
     st.table(bench_data)
 
 # ----------------------------------------------------------------------------------------------------------------------
-# TAB 7: QUẢN LÝ SAO LƯU (BACKUP) VÀ PHỤC HỒI (RESTORE) CSDL
+# TAB 7: QUẢN LÝ SAO LƯU VÀ PHỤC HỒI CSDL
 # ----------------------------------------------------------------------------------------------------------------------
 with tabs[6]:
     st.markdown(
-        '<div class="main-header">Quản Trị Sao Lưu (Backup) & Phục Hồi (Restore) CSDL RocksDB</div>',
+        '<div class="main-header">Quản Trị Sao Lưu & Phục Hồi CSDL RocksDB</div>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="sub-header">Bảo đảm an toàn dữ liệu: Tạo bản sao snapshot vật lý và phục hồi CSDL theo yêu cầu đồ án</div>',
+        '<div class="sub-header">Tạo bản sao vật lý và phục hồi CSDL</div>',
         unsafe_allow_html=True,
     )
 
     col_bk1, col_bk2 = st.columns(2)
 
     with col_bk1:
-        st.subheader("💾 Tạo bản sao lưu mới (Backup)")
+        st.subheader("💾 Tạo bản sao lưu mới")
         st.caption(
-            "Ép ghi dữ liệu từ bộ nhớ MemTable/WAL xuống đĩa và tạo gói snapshot lưu trữ độc lập trong thư mục backups/."
+            "Ép ghi dữ liệu từ bộ nhớ MemTable/WAL xuống đĩa và tạo gói lưu trữ độc lập trong thư mục backups/."
         )
         backup_note = st.text_input(
             "Ghi chú bản sao lưu:",
@@ -804,9 +800,9 @@ with tabs[6]:
                     st.error(f"Lỗi khi sao lưu CSDL: {res_meta}")
 
     with col_bk2:
-        st.subheader("♻️ Phục hồi CSDL từ bản sao lưu (Restore)")
+        st.subheader("♻️ Phục hồi CSDL từ bản sao lưu")
         st.caption(
-            "Khôi phục toàn bộ các cặp Key-Value từ bản sao lưu đã tạo mà không cần tắt hay khởi động lại Docker."
+            "Khôi phục toàn bộ các cặp Key-Value từ bản sao lưu đã tạo mà không cần tắt hay khởi động lại."
         )
 
         available_bks = list_available_backups()
